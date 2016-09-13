@@ -1,0 +1,210 @@
+package dns;
+
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
+import java.net.UnknownHostException;
+import java.util.Arrays;
+
+/**
+ * @author Marie Jones 
+ * @author Tony Mercier
+ *
+ *
+ *Fonction principale : retourne l'adresse IP d'une adresse passée en paramètre au main 
+ *
+ */
+public class DNS {
+	
+	public byte[] entete() {
+		
+		byte[] head = {(byte) 0x08, (byte) 0xbb , (byte)(0x01),(byte) 0x00,
+						(byte) 0x00,(byte)0x01, (byte) 0x00, (byte)0x00,
+						(byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00};
+		
+		return head;
+	}
+	
+	public byte[] getLabel(String address) {
+		
+		int      cpt = 0;
+		byte[]   label = new byte[address.length() +2];
+		String[] tmp = address.split("\\.");
+		
+		for (int i=0; i < tmp.length; i++) {
+			Integer l = tmp[i].length();
+			byte lg = Byte.valueOf((Integer.toHexString(l))); 
+			
+			label[cpt] = lg;
+			cpt++;
+			
+			for (int j = 0 ; j < l ; j++) {
+				label[cpt] = Byte.valueOf(Integer.toHexString(new Integer(tmp[i].charAt(j))),16);
+				cpt++;
+			}	
+		}
+		
+		return label;
+	}
+	
+	public byte[] creerRequete(String address) {
+		byte[] header = entete();
+		
+		byte[] label = this.getLabel(address);
+		
+		byte[] request = Arrays.copyOf(header, 12 + label.length +4);
+		
+		int cpt = 12;
+		
+		for (int i = 0 ; i < label.length ; i++) {
+			request[cpt] = label[i];
+			cpt++;
+		}
+		
+		request[cpt]    = (byte) 0x00;
+		request[cpt +1] = (byte) 0x01;
+		request[cpt +2] = (byte) 0x00;
+		request[cpt +3] = (byte) 0x01;
+		
+		return request;
+	}
+	
+	public int bytesToInt(byte ... toConvert) {
+		
+		int nb = 0 ;
+		int lg = toConvert.length;
+		for (int i =0 ; i < lg ; i++) {
+			nb += toConvert[i] << (8 * (lg -i - 1));
+		}
+		return nb;
+	}
+	
+	public byte[] recupereIp(byte[] reponse) {
+		
+		int cpt = 0;
+		
+		while (cpt != reponse.length) {
+			
+			if (reponse[cpt] == (byte) 0xc0) {
+				cpt+= 2;
+				byte[] type = Arrays.copyOfRange(reponse,cpt,cpt +2);
+				int cl = this.bytesToInt(type);
+				cpt+= 8;
+				int lg = this.bytesToInt(Arrays.copyOfRange(reponse, cpt, cpt +2));
+				cpt += 2; 
+				
+				switch (cl) {
+				
+				case 5 :
+					cpt += lg;
+					break;
+					
+				case 1 :
+					byte[] res = new byte[lg];
+					for (int i =0 ; i <lg ; i++) {
+						res[i] = reponse[cpt];
+						cpt++;
+					}
+					return res;
+					
+				default :
+					break;
+				}
+			}
+			
+			else {
+				break;
+			}
+		}
+		
+		return new byte[0];
+		
+		
+	}
+	
+	public String decodeAdresse(byte[] ip) {
+		
+		StringBuffer adress = new StringBuffer();
+		for (int i = 0 ; i < ip.length; i++) {
+			adress.append(String.valueOf(Math.abs(this.bytesToInt(ip[i]))));
+			if (i != ip.length - 1) {
+				adress.append('.');
+			}
+		}
+		return adress.toString();
+		
+	}
+	
+	
+	
+	public static void main(String[] args) {
+		
+		String adresse = args[0];
+		DNS rq = new DNS();
+		byte[] request = rq.creerRequete(adresse);
+		
+		InetAddress destination = null;
+		
+		try {
+			
+			destination = InetAddress.getByName("193.49.225.15");
+		} 
+		catch (UnknownHostException e) {
+			System.out.println("adresse non valide");
+			
+		}
+		
+		DatagramPacket packet = new DatagramPacket(request, request.length,destination,53);
+		DatagramSocket socket = null;
+		
+		try {
+			socket = new DatagramSocket();
+		} catch (SocketException e) {
+			System.out.println("impossibilité de créer une socket");
+		
+		}
+		
+		
+		try {
+			socket.send(packet);
+			
+		} catch (IOException e) {
+			System.out.println("unable to send");
+		
+		}
+		
+		
+		DatagramPacket reception = new DatagramPacket(new byte[1024],1024);
+		
+		try {
+			socket.receive(reception);
+		}
+		catch (IOException e) {
+			System.out.println("unable to receive");
+		}
+		
+		
+		byte[] rep = reception.getData();
+		
+		byte[] reponse = Arrays.copyOfRange(rep,request.length,rep.length);
+		
+		System.out.println(adresse + " has ip : " + rq.decodeAdresse(rq.recupereIp(reponse)));
+		System.out.println("ip sous forme d'un entier 32 bits :" + String.valueOf(Math.abs(rq.bytesToInt(rq.recupereIp(reponse)))));
+		
+		
+		for (int i =0 ; i < rep.length ; i++) {
+			System.out.print(" " + Integer.toHexString((rep[i])&0xff));
+			if (i % 16 == 0) {
+				System.out.println("");
+			}
+		}
+		
+		
+		socket.close();
+		
+	}
+	
+}
+ 

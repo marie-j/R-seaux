@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Extract local variable &apos;atomicBoolean&apos; from expression &apos;this.run=run&apos;&#x0A;- Original project: &apos;Protocole UDP&apos;&#x0A;- Variable name: &apos;atomicBoolean&apos;&#x0A;- Destination method: &apos;Tchat.Receiver.Receiver()&apos;&#x0A;- Variable expression: &apos;this.run=run&apos;&#x0A;- Replace occurrences of expression with variable" description="Extract local variable &apos;atomicBoolean&apos;" final="false" id="org.eclipse.jdt.ui.extract.temp" input="/src&lt;Tchat{Receiver.java" name="atomicBoolean" replace="true" selection="575 14" stamp="1452955773848" version="1.0"/>
+</session>
